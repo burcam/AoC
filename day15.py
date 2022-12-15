@@ -12,8 +12,6 @@ with open("day15") as file:
         distance = abs(x-bx) + abs(y-by)
         for y_val in range(max(0, y-distance), min(4000000, y+distance)+1):
             y_diff = abs(y-y_val)
-            if y_val == 288625:
-                print((max(0, x+y_diff-distance), min(4000000, x+distance-y_diff)))
             excluded[y_val].append((max(0, x+y_diff-distance), min(4000000, x+distance-y_diff)))
 
 found = False
