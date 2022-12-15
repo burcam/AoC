@@ -2,11 +2,9 @@ import re
 from typing import Dict, List, Set, Tuple
 
 excluded: List[List[Tuple[int,int]]] = [[] for _ in range(4000001)]
-
 with open("day15") as file:
     for line in file.readlines():
         line = line.strip()
-        print(line)
         matches = re.match("Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)", line).groups()
         [x,y,bx,by]=[int(match) for match in matches]
         distance = abs(x-bx) + abs(y-by)
@@ -22,7 +20,6 @@ for index, exc in enumerate(excluded):
         if exc_index == 0:
             continue
         if ran[0] > line[1] + 1:
-            print(line[1], ran[0])
             print((line[1]+1)*4000000 + index)
             found = True
             break
