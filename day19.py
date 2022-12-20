@@ -23,6 +23,86 @@ class Blueprint():
         print(f"  Each obsidian robot costs {self.obsidian_robot_cost[0]} ore and {self.obsidian_robot_cost[1]} clay.")
         print(f"  Each geode robot costs {self.geode_robot_cost[0]} ore and {self.geode_robot_cost[1]} obsidian.")
 
+@dataclass(frozen=True)
+class Step():
+    blueprint: Blueprint
+    ore: int
+    clay: int
+    obsidian: int
+    ore_bots: int
+    clay_bots: int
+    obsidian_bots: int
+    def next_ore(self):
+        if self.ore_bots == max(self.blueprint.clay_robot_cost, self.blueprint.obsidian_robot_cost[0], self.blueprint.geode_robot_cost[0]):
+            return -1
+        if self.blueprint.ore_robot_cost <= self.ore:
+            return 0
+        return ceil((self.blueprint.ore_robot_cost - self.ore)/self.ore_bots)
+    def next_clay(self):
+        if self.clay_bots == self.blueprint.obsidian_robot_cost[1]:
+            return -1
+        if self.blueprint.clay_robot_cost <= self.ore:
+            return 0
+        return ceil((self.blueprint.clay_robot_cost - self.ore)/self.ore_bots)
+    def next_obsidian(self):
+        if self.clay_bots == 0 or self.obsidian_bots == self.blueprint.geode_robot_cost[1]:
+            return -1
+        if self.blueprint.obsidian_robot_cost[0] <= self.ore and self.blueprint.obsidian_robot_cost[1] <= self.clay:
+            return 0
+        return max(
+            ceil((self.blueprint.obsidian_robot_cost[0]-self.ore)/self.ore_bots),
+            ceil((self.blueprint.obsidian_robot_cost[1]-self.clay)/self.clay_bots),
+            )
+    def next_geode(self):
+        if self.obsidian_bots == 0:
+            return -1
+        if self.blueprint.geode_robot_cost[0] <= self.ore and self.blueprint.geode_robot_cost[1] <= self.obsidian:
+            return 0
+        return max(
+            ceil((self.blueprint.geode_robot_cost[0]-self.ore)/self.ore_bots),
+            ceil((self.blueprint.geode_robot_cost[1]-self.obsidian)/self.obsidian_bots),
+            )
+    def ore_step(self, inc: int):
+        return Step(
+            self.blueprint,
+            self.ore+self.ore_bots*inc-self.blueprint.ore_robot_cost,
+            self.clay+self.clay_bots*inc,
+            self.obsidian+self.obsidian_bots*inc,
+            self.ore_bots+1,
+            self.clay_bots,
+            self.obsidian_bots
+        )
+    def clay_step(self, inc: int):
+        return Step(
+            self.blueprint,
+            self.ore+self.ore_bots*inc-self.blueprint.clay_robot_cost,
+            self.clay+self.clay_bots*inc,
+            self.obsidian+self.obsidian_bots*inc,
+            self.ore_bots,
+            self.clay_bots+1,
+            self.obsidian_bots
+        )
+    def obsidian_step(self, inc: int):
+        return Step(
+            self.blueprint,
+            self.ore+self.ore_bots*inc-self.blueprint.obsidian_robot_cost[0],
+            self.clay+self.clay_bots*inc-self.blueprint.obsidian_robot_cost[1],
+            self.obsidian+self.obsidian_bots*inc,
+            self.ore_bots,
+            self.clay_bots,
+            self.obsidian_bots+1
+        )
+    def geode_step(self, inc: int):
+        return Step(
+            self.blueprint,
+            self.ore+self.ore_bots*inc-self.blueprint.geode_robot_cost[0],
+            self.clay+self.clay_bots*inc,
+            self.obsidian+self.obsidian_bots*inc-self.blueprint.geode_robot_cost[1],
+            self.ore_bots,
+            self.clay_bots,
+            self.obsidian_bots
+        )
+
 blueprints: List[Blueprint] = []
 
 with open("day19_2") as file:
@@ -37,101 +117,29 @@ with open("day19_2") as file:
             (int(matches[5]), int(matches[6])),
             int(matches[7] or -1)))
 
-class Bots(Enum):
-    ORE = 0
-    CLAY = 1
-    OBSIDIAN = 2
-    GEODE = 3
-    HOLD_GEO = 4
-    HOLD_OBS = 5
-    HOLD_CLA = 6
-    HOLD_ORE = 7
 
-def ore_time_required(blueprint: Blueprint, ore_bots: int, ore: int):
-    if ore >= blueprint.ore_robot_cost:
-        return 0
-    return ceil((blueprint.ore_robot_cost - ore)/ore_bots)
-
-def clay_time_required(blueprint: Blueprint, ore_bots: int, ore: int):
-    if ore >= blueprint.clay_robot_cost:
-        return 0
-    return ceil((blueprint.clay_robot_cost - ore)/ore_bots)
-
-def obsidian_time_required(blueprint: Blueprint, ore_bots: int, ore: int, clay_bots: int, clay: int):
-    if ore >= blueprint.obsidian_robot_cost[0] and clay >= blueprint.obsidian_robot_cost[1]:
-        return 0
-    if clay_bots == 0:
-        return 30
-    return max(ceil((blueprint.obsidian_robot_cost[0] - ore)/ore_bots), ceil((blueprint.obsidian_robot_cost[1] - clay)/clay_bots))
-
-def geode_time_required(blueprint: Blueprint, ore_bots: int, ore: int, obsidian_bots: int, obsidian: int):
-    if ore >= blueprint.geode_robot_cost[0] and obsidian >= blueprint.geode_robot_cost[1]:
-        return 0
-    if obsidian_bots == 0:
-        return 30
-    return max(ceil((blueprint.geode_robot_cost[0] - ore)/ore_bots), ceil((blueprint.geode_robot_cost[1] - obsidian)/obsidian_bots))
-
-def target_bot(blueprint: Blueprint, ore_bots: int, clay_bots: int, obsidian_bots: int, ore: int, clay: int, obsidian: int):
-    geode_time = geode_time_required(blueprint, ore_bots, ore, obsidian_bots, obsidian)
-    if geode_time == 0:
-        return Bots.GEODE
-    obsidian_time = obsidian_time_required(blueprint, ore_bots, ore, clay_bots, clay)
-    ore_time = ore_time_required(blueprint, ore_bots, ore)
-    if geode_time <= obsidian_time and geode_time <= ore_time:
-        return Bots.HOLD_GEO
-    if geode_time < obsidian_time + geode_time_required(blueprint, ore_bots, ore-blueprint.obsidian_robot_cost[0], obsidian_bots+1, obsidian):
-        return Bots.HOLD_GEO
-    clay_time = clay_time_required(blueprint, ore_bots, ore)
-
-
-def geode_count(blueprint: Blueprint, minutes_left: int, ore_bots: int, clay_bots: int, obsidian_bots: int, ore: int, clay: int, obsidian: int):
+def geode_count(minutes_left: int, step: Step):
+    
     if minutes_left < 1:
         return 0
-    max_geodes = 0
-    if ore >= blueprint.geode_robot_cost[0] and obsidian >= blueprint.geode_robot_cost[1]:
-        print(ore_bots, clay_bots, obsidian_bots, blueprint.geode_robot_cost)
-        return (minutes_left - 1) + geode_count(blueprint, minutes_left - 1,
-            ore_bots, clay_bots, obsidian_bots,
-            ore - blueprint.geode_robot_cost[0] + ore_bots,
-            clay + clay_bots,
-            obsidian - blueprint.geode_robot_cost[1] + obsidian_bots)
-    if ore >= blueprint.obsidian_robot_cost[0] and clay >= blueprint.obsidian_robot_cost[1]:
-        temp = geode_count(blueprint, minutes_left - 1,
-            ore_bots, clay_bots, obsidian_bots + 1,
-            ore - blueprint.obsidian_robot_cost[0] + ore_bots,
-            clay - blueprint.obsidian_robot_cost[1] + clay_bots,
-            obsidian + obsidian_bots)
-        if temp > max_geodes:
-            max_geodes = temp
-    if ore >= blueprint.clay_robot_cost:
-        temp = geode_count(blueprint, minutes_left - 1,
-            ore_bots, clay_bots + 1, obsidian_bots ,
-            ore - blueprint.clay_robot_cost + ore_bots,
-            clay + clay_bots,
-            obsidian + obsidian_bots)
-        if temp > max_geodes:
-            max_geodes = temp
-    if ore >= blueprint.ore_robot_cost:
-        temp = geode_count(blueprint, minutes_left - 1,
-            ore_bots + 1, clay_bots, obsidian_bots ,
-            ore - blueprint.ore_robot_cost + ore_bots,
-            clay + clay_bots,
-            obsidian + obsidian_bots)
-        if temp > max_geodes:
-            max_geodes = temp
-    
-    temp = geode_count(blueprint, minutes_left - 1,
-        ore_bots , clay_bots, obsidian_bots ,
-        ore + ore_bots,
-        clay + clay_bots,
-        obsidian + obsidian_bots)
-    if temp > max_geodes:
-        max_geodes = temp
-    return max_geodes
+    jumps = [step.next_geode(), step.next_obsidian(), step.next_clay(), step.next_ore()]
+    counts = [0]
+    if jumps[0] != -1 and (minutes_left-jumps[0]-1) > 0:
+        counts.append(geode_count(minutes_left-jumps[0]-1, step.geode_step(jumps[0]+1)) + minutes_left-jumps[0]-1)
+    if jumps[1] != -1:
+        counts.append(geode_count(minutes_left-jumps[1]-1, step.obsidian_step(jumps[1]+1)))
+    if jumps[2] != -1:
+        counts.append(geode_count(minutes_left-jumps[2]-1, step.clay_step(jumps[2]+1)))
+    if jumps[3] != -1:
+        counts.append(geode_count(minutes_left-jumps[3]-1, step.ore_step(jumps[3]+1)))
+    if len(counts) == 1:
+        return counts[0]
+    return max(*counts)
     
 blueprint_qualities: List[int] = []
 for blueprint in blueprints:
-    quality = geode_count(blueprint, 32, 1, 0, 0, 0, 0, 0) if blueprint.previous_attempt == -1 else blueprint.previous_attempt
+    step = Step(blueprint, 0, 0, 0, 1, 0, 0)
+    quality = geode_count(32, step) if blueprint.previous_attempt == -1 else blueprint.previous_attempt
     print(blueprint.blueprint_num, quality)
     blueprint_qualities.append(quality)
 print(blueprint_qualities[0]* blueprint_qualities[1] * blueprint_qualities[2])
