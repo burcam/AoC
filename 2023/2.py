@@ -2,37 +2,64 @@
 r=12
 g=13
 b=14
-with open("2.txt") as f:
+with open("./2.txt") as f:
     game=1
-    sum=0
+    tot=0
     for line in f.readlines():
         line=line.strip()
+        
         _, sets = line. split(":")
         subgames = sets. split(";")
         a=True
+        
         for sub in subgames :
             values = sub.split(",")
-            blue,red, green=-1,-1,-1
             for value in values:
-                value=value. strip()
-                target=int(value. split(" ")[0])
-                if "blu" in value:
+                values=value. strip().split(" ")
+                target=int(values[0])
+                if values[1]=="blue":
                     if target>b:
+                        a = False
                         break
-                    blue=target
-                elif "re" in value:
+                elif values[1]=="red":
                     if target>r:
+                        a = False
                         break
-                    red=target
                 else:
                     if target>g:
+                        a = False
                         break
-                    green=target
-            if red==-1 or green==-1 or blue==-1:
-                a=False
+            if not a:
                 break
         if a:
-            sum+=game
+            tot+=game
         game +=1
-print(sum)
+print(tot)
 
+
+with open("./2.txt") as f:
+    tot=0
+    for line in f.readlines():
+        line=line.strip()
+        
+        _, sets = line. split(":")
+        subgames = sets. split(";")
+        rm = 0
+        gm = 0
+        bm = 0
+        for sub in subgames :
+            values = sub.split(",")
+            for value in values:
+                vals=value. strip().split(" ")
+                target=int(vals[0])
+                if vals[1]=="blue":
+                    if bm<target:
+                        bm=target
+                elif vals[1]=="red":
+                    if target>rm:
+                        rm = target
+                else:
+                    if target>gm:
+                        gm = target
+        tot += rm*gm*bm
+print(tot)
